@@ -23,5 +23,5 @@ target_include_directories(vision.bin PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../comun)   # Efecto.hpp compartido con Android
 target_link_libraries(vision.bin PRIVATE ${OpenCV_LIBS} Threads::Threads)
 
-# Carpeta raíz del proyecto: Bad Apple.mp4 y los cuadros de referencia
-target_compile_definitions(vision.bin PRIVATE RUTA_RECURSOS="${CMAKE_CURRENT_SOURCE_DIR}/..")
+# Carpeta de recursos: video Bad Apple y cuadros de referencia
+target_compile_definitions(vision.bin PRIVATE RUTA_RECURSOS="${CMAKE_CURRENT_SOURCE_DIR}/../recursos")

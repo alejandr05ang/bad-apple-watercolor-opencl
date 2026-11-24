@@ -33,7 +33,7 @@ using namespace std;
 using namespace cv;
 
 #ifndef RUTA_RECURSOS
-#define RUTA_RECURSOS ".."
+#define RUTA_RECURSOS "../recursos"
 #endif
 
 static const char* VENTANA_CONTROLES = "Controles";
@@ -72,7 +72,7 @@ static Mat leerImagen(const string& ruta) {
 
 int main(int argc, char** argv) {
     const string raiz = RUTA_RECURSOS;
-    const string rutaBadApple = raiz + "/Bad Apple.mp4";
+    const string rutaBadApple = raiz + "/video/bad-apple.mp4";
     bool conAudio = true;
 
     // ------------------------------------------------------- Fuente de video
@@ -95,8 +95,8 @@ int main(int argc, char** argv) {
     if (!badApple.isOpened()) { cerr << "No se pudo abrir " << rutaBadApple << endl; return -1; }
     const double fpsBA = badApple.get(CAP_PROP_FPS) > 0 ? badApple.get(CAP_PROP_FPS) : 30.0;
 
-    Mat cuadroGris  = leerImagen(raiz + "/Gray Tree.jpeg");
-    Mat cuadroColor = leerImagen(raiz + "/Little Bay at La Ciotat.jpeg");
+    Mat cuadroGris  = leerImagen(raiz + "/cuadros/gray-tree.jpeg");
+    Mat cuadroColor = leerImagen(raiz + "/cuadros/little-bay-at-la-ciotat.jpeg");
 
     // ---------------------------------------------------------------- OpenCL
     if (!ocl::haveOpenCL()) cerr << "AVISO: OpenCL no disponible, el modo GPU usará la CPU\n";

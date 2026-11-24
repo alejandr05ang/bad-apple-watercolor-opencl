@@ -1,0 +1,32 @@
+# --- Compilación (CMake / C++) ---
+build/
+**/build/
+*.o
+*.so
+*.a
+*.bin
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# --- Android (para la app móvil) ---
+.gradle/
+local.properties
+*.apk
+*.aab
+.cxx/
+.externalNativeBuild/
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+
+# --- Resultados generados al ejecutar ---
+metricas*.csv
+
+# --- Editores / sistema ---
+.vscode/
+.idea/
+*.swp
+.DS_Store

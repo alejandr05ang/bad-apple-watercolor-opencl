@@ -1,3 +1,0 @@
-/home/alejandr05/Documentos/Vision-Computador/Interciclo_1/Trabajos/Interciclo/escritorio/build/CMakeFiles/vision.bin.dir
-/home/alejandr05/Documentos/Vision-Computador/Interciclo_1/Trabajos/Interciclo/escritorio/build/CMakeFiles/edit_cache.dir
-/home/alejandr05/Documentos/Vision-Computador/Interciclo_1/Trabajos/Interciclo/escritorio/build/CMakeFiles/rebuild_cache.dir
