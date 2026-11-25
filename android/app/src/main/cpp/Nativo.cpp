@@ -14,6 +14,8 @@
 #include <android/log.h>
 
 #include <chrono>
+#include <cstdlib>   // setenv
+#include <fstream>
 #include <string>
 
 #include <opencv2/core.hpp>
@@ -53,6 +55,9 @@ struct Estado {
     EtapasAcuarela<UMat>   etGPU;
 
     double emaCPU = 0, emaGPU = 0, fps = 0;
+    std::ofstream csv;                       // métricas para las gráficas del informe
+    reloj::time_point inicio = reloj::now();
+    long frames = 0;
     int modoAnterior = -1;
     reloj::time_point tAnterior = reloj::now();
     MedidorCPU medidorCPU;
@@ -120,10 +125,11 @@ static void etapaAVista(const EtapasAcuarela<M>& e, int etapa, Mat& vista) {
 extern "C" {
 
 // -----------------------------------------------------------------------------
-// iniciar(rutaBadApple, rutaCuadroGris, rutaCuadroColor) -> texto de estado
+// iniciar(rutaBadApple, rutaCuadroGris, rutaCuadroColor, carpetaCache, rutaCsv) -> estado
 // -----------------------------------------------------------------------------
 JNIEXPORT jstring JNICALL
-Java_com_grupo9_acuarela_Nativo_iniciar(JNIEnv* env, jobject, jstring jBA, jstring jGris, jstring jColor) {
+Java_com_grupo9_acuarela_Nativo_iniciar(JNIEnv* env, jobject, jstring jBA, jstring jGris,
+                                        jstring jColor, jstring jCache, jstring jCsv) {
     auto texto = [&](jstring s) {
         const char* c = env->GetStringUTFChars(s, nullptr);
         std::string r(c);
@@ -141,7 +147,10 @@ Java_com_grupo9_acuarela_Nativo_iniciar(JNIEnv* env, jobject, jstring jBA, jstri
     E.recCPU.cargarPaletas(cuadroGris, cuadroColor);
     E.recGPU.cargarPaletas(cuadroGris, cuadroColor);
 
-    // ---- OpenCL: se carga libOpenCL.so del fabricante en tiempo de ejecución
+    // ---- OpenCL: se carga libOpenCL.so del fabricante en tiempo de ejecución.
+    // En Android OpenCV no tiene carpeta por defecto para guardar los kernels ya
+    // compilados: sin esto, cada vez que se abre la app se recompilan todos.
+    setenv("OPENCV_OPENCL_CACHE_DIR", texto(jCache).c_str(), 1);
     ocl::setUseOpenCL(true);
     std::string estado;
     if (ocl::haveOpenCL() && ocl::useOpenCL()) {
@@ -151,6 +160,17 @@ Java_com_grupo9_acuarela_Nativo_iniciar(JNIEnv* env, jobject, jstring jBA, jstri
         estado = "OpenCL NO disponible: el modo GPU se ejecuta en CPU";
     }
     LOG("%s", estado.c_str());
+
+    // ---- CSV con las mismas columnas que la app de escritorio (graficar_metricas.py).
+    //      La GPU Mali no expone uso ni memoria a las apps: esas columnas van en -1.
+    // Si la actividad se recrea en el mismo proceso (salir con "atrás" y volver),
+    // el archivo anterior sigue abierto: hay que cerrarlo o open() falla en silencio.
+    if (E.csv.is_open()) E.csv.close();
+    E.csv.clear();
+    E.csv.open(texto(jCsv));
+    LOG("CSV: %s (%s)", texto(jCsv).c_str(), E.csv.is_open() ? "ok" : "ERROR");
+    E.csv << "tiempo_s,modo,bilateral_d,pasadas,kernel_dog,ms_cpu,ms_gpu,fps,ram_mb,cpu_pct,gpu_util_pct,gpu_mem_proceso_mb\n";
+    E.inicio = reloj::now();
     return env->NewStringUTF(estado.c_str());
 }
 
@@ -172,6 +192,7 @@ Java_com_grupo9_acuarela_Nativo_abrirCamara(JNIEnv*, jobject, jint indice) {
 JNIEXPORT void JNICALL
 Java_com_grupo9_acuarela_Nativo_cerrarCamara(JNIEnv*, jobject) {
     E.camara.release();
+    E.csv.flush();
 }
 
 // -----------------------------------------------------------------------------
@@ -240,7 +261,6 @@ Java_com_grupo9_acuarela_Nativo_procesar(JNIEnv* env, jobject, jobject bmpOrigin
         E.emaGPU = (E.emaGPU == 0) ? msGPU : (1 - alfa) * E.emaGPU + alfa * msGPU;
     }
 
-    if (msGPU > 150 || msCPU > 400) LOG("LENTO d=%d pas=%d dog=%d cpu=%.0f gpu=%.0f", p.bilateralD, p.pasadasBilateral, p.kernelDoG, msCPU, msGPU); // TEMPORAL
     // ---- Vistas: izquierda la cámara original, derecha la etapa elegida
     if (etapa == 2)      E.frameBA.copyTo(E.vista);           // Bad Apple original
     else if (modo == 0)  etapaAVista(E.etCPU, etapa, E.vista);
@@ -255,6 +275,12 @@ Java_com_grupo9_acuarela_Nativo_procesar(JNIEnv* env, jobject, jobject bmpOrigin
     if (dt > 0) E.fps = (E.fps == 0) ? 1.0 / dt : 0.9 * E.fps + 0.1 * (1.0 / dt);
 
     double r[7] = {msCPU, msGPU, E.emaCPU, E.emaGPU, E.fps, ramProcesoMB(), E.medidorCPU.porcentaje()};
+    if (E.csv.is_open()) {
+        E.csv << std::chrono::duration<double>(ahora - E.inicio).count() << ',' << modo << ','
+              << p.bilateralD << ',' << p.pasadasBilateral << ',' << p.kernelDoG << ','
+              << msCPU << ',' << msGPU << ',' << E.fps << ',' << r[5] << ',' << r[6] << ",-1,-1\n";
+        if (++E.frames % 30 == 0) E.csv.flush();
+    }
     jdoubleArray salida = env->NewDoubleArray(7);
     env->SetDoubleArrayRegion(salida, 0, 7, r);
     return salida;

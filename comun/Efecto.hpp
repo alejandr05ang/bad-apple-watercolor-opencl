@@ -135,6 +135,7 @@ struct RecursosAcuarela {
     Paleta grisBase, colorBase;   // estadísticas originales de los cuadros
     Paleta gris, color;           // con contraste / croma aplicados
     cv::Mat kernelDoG, lutLavados, elementoLapiz;
+    cv::Mat gaussMascara = cv::getGaussianKernel(13, 2.0, CV_32F);  // 1D, σ = 2
     M grano, turbulencia, textura, mapaX, mapaY;
 
     cv::Size tam;
@@ -225,7 +226,11 @@ void aplicarAcuarela(const M& camara, const M& badApple, const RecursosAcuarela<
     cvtColor(badApple, e.grisBA, COLOR_BGR2GRAY);
     resize(e.grisBA, e.grisBAEsc, tam, 0, 0, INTER_LINEAR);
     threshold(e.grisBAEsc, e.silueta, 127, 255, THRESH_BINARY_INV);
-    GaussianBlur(e.silueta, e.siluetaSuave, Size(0, 0), 2.0);     // transición suave
+    // Transición suave: gaussiana σ=2 de 13x13 aplicada como dos pasadas 1D
+    // (G2D = g·gᵀ, 13+13 multiplicaciones por píxel en vez de 169).
+    // GaussianBlur(Size(0,0), 2.0) da lo mismo, pero en OpenCL (GPU Mali) no
+    // tiene kernel para ese caso y se ejecuta en la CPU, frenando el pipeline.
+    sepFilter2D(e.silueta, e.siluetaSuave, -1, r.gaussMascara, r.gaussMascara);
     e.siluetaSuave.convertTo(e.alfa1, CV_32F, 1.0 / 255.0);
     cvtColor(e.alfa1, e.alfa3, COLOR_GRAY2BGR);
 

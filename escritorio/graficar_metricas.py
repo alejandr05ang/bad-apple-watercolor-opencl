@@ -54,6 +54,15 @@ def media(xs):
     return sum(xs) / len(xs) if xs else float("nan")
 
 
+def mediana(xs):
+    """Robusta a los picos de los frames en que OpenCL compila un kernel nuevo."""
+    if not xs:
+        return float("nan")
+    xs = sorted(xs)
+    m = len(xs) // 2
+    return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2
+
+
 def guardar(fig, carpeta, nombre):
     ruta = os.path.join(carpeta, nombre)
     fig.tight_layout()
@@ -109,7 +118,7 @@ def resumen(filas, carpeta):
 
 
 def escalado(filas, carpeta, parametro, titulo, eje_x, nombre):
-    """ms promedio por valor del parámetro, dejando FIJOS los demás parámetros
+    """ms (mediana) por valor del parámetro, dejando FIJOS los demás parámetros
     (en su valor más frecuente) para no mezclar efectos."""
     otros = [c for c in ("bilateral_d", "pasadas", "kernel_dog") if c != parametro]
     for c in otros:
@@ -124,7 +133,7 @@ def escalado(filas, carpeta, parametro, titulo, eje_x, nombre):
     for etiqueta, col in (("CPU", "ms_cpu"), ("GPU", "ms_gpu")):
         xs, ys = [], []
         for v in valores:
-            m = media([r[col] for r in filas if r[parametro] == v and r[col] >= 0])
+            m = mediana([r[col] for r in filas if r[parametro] == v and r[col] >= 0])
             if m == m:
                 xs.append(v); ys.append(m)
         if xs:
@@ -134,7 +143,7 @@ def escalado(filas, carpeta, parametro, titulo, eje_x, nombre):
                         va="center", color=TINTA, fontsize=10)
     ax.set_title(titulo)
     ax.set_xlabel(eje_x)
-    ax.set_ylabel("ms por frame")
+    ax.set_ylabel("ms por frame (mediana)")
     ax.set_ylim(bottom=0)
     ax.legend(loc="upper left")
     guardar(fig, carpeta, nombre)

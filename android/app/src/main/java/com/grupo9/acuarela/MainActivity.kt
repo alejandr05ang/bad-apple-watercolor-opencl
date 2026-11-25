@@ -26,13 +26,17 @@ import java.util.concurrent.TimeUnit
  */
 class MainActivity : Activity() {
 
-    // Sliders de los kernels (mismos rangos y valores iniciales que en escritorio)
-    private class Control(val nombre: String, val min: Int, val max: Int, var valor: Int)
+    // Sliders de los kernels (mismos rangos y valores iniciales que en escritorio).
+    // alSoltar = el valor se aplica solo al soltar el slider: cada tamaño de kernel
+    // nuevo obliga a OpenCL a compilar otro programa para la GPU, y aplicar cada
+    // valor intermedio al arrastrar compilaría decenas de kernels seguidos.
+    private class Control(val nombre: String, val min: Int, val max: Int,
+                          @Volatile var valor: Int, val alSoltar: Boolean = false)
 
     private val controles = listOf(
-        Control("Bilateral d", 1, 31, 9),
+        Control("Bilateral d", 1, 31, 9, alSoltar = true),
         Control("Pasadas bilateral", 1, 6, 3),
-        Control("Kernel DoG (n)", 3, 61, 7),
+        Control("Kernel DoG (n)", 3, 61, 7, alSoltar = true),
         Control("Bordes x10", 0, 60, 32),
         Control("Grano x100", 0, 150, 55),
         Control("Lápiz x10", 0, 40, 12),
@@ -74,7 +78,10 @@ class MainActivity : Activity() {
         val video = copiarAsset("bad-apple.mp4")
         val gris = copiarAsset("gray-tree.jpeg")
         val color = copiarAsset("little-bay-at-la-ciotat.jpeg")
-        estadoOpenCL = Nativo.iniciar(video.path, gris.path, color.path)
+        // Un CSV por sesión en /sdcard/Android/data/com.grupo9.acuarela/files/ (se baja con adb pull)
+        val fecha = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+        val csv = File(getExternalFilesDir(null) ?: filesDir, "metricas_$fecha.csv")
+        estadoOpenCL = Nativo.iniciar(video.path, gris.path, color.path, cacheDir.path, csv.path)
         listo = !estadoOpenCL.startsWith("ERROR")
         txtMetricas.text = estadoOpenCL
 
@@ -204,11 +211,13 @@ class MainActivity : Activity() {
                 progress = c.valor - c.min
                 setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(s: SeekBar?, v: Int, deUsuario: Boolean) {
-                        c.valor = v + c.min
-                        etiqueta.text = "${c.nombre}: ${c.valor}"
+                        etiqueta.text = "${c.nombre}: ${v + c.min}"
+                        if (!c.alSoltar) c.valor = v + c.min
                     }
                     override fun onStartTrackingTouch(s: SeekBar?) {}
-                    override fun onStopTrackingTouch(s: SeekBar?) {}
+                    override fun onStopTrackingTouch(s: SeekBar?) {
+                        c.valor = (s?.progress ?: 0) + c.min
+                    }
                 })
             }
             panel.addView(etiqueta)

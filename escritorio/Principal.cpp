@@ -56,6 +56,22 @@ static void etiquetar(Mat& img, const string& texto) {
     putText(img, texto, Point(10, t.height + 8), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0, 255, 255), 2, LINE_AA);
 }
 
+// Valor de un trackbar que solo se aplica cuando deja de moverse 300 ms.
+// Cada tamaño de kernel nuevo obliga a OpenCL a compilar otro programa para la
+// GPU; si se aplicara cada valor intermedio al arrastrar, se compilarían
+// decenas de kernels seguidos y el video se congelaría.
+struct ValorEstable {
+    int valor = -1, candidato = -1;
+    chrono::steady_clock::time_point desde;
+    int leer(int actual) {
+        auto ahora = chrono::steady_clock::now();
+        if (actual != candidato) { candidato = actual; desde = ahora; }
+        if (valor < 0 || (candidato != valor && ahora - desde >= chrono::milliseconds(300)))
+            valor = candidato;
+        return valor;
+    }
+};
+
 static Mat crearPanelAyuda() {
     Mat panel(110, 560, CV_8UC3, Scalar(40, 40, 40));
     putText(panel, "m: modo CPU / GPU / AMBOS", Point(10, 25), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(255, 255, 255), 1);
@@ -124,6 +140,7 @@ int main(int argc, char** argv) {
     for (const Barra& b : barras) setTrackbarPos(b.nombre, VENTANA_CONTROLES, b.valor);
     imshow(VENTANA_CONTROLES, crearPanelAyuda());   // solo texto de ayuda (no video)
     auto barra = [](const char* n) { return getTrackbarPos(n, VENTANA_CONTROLES); };
+    ValorEstable estableD, estableDoG;   // solo los controles que cambian el tamaño de un kernel
 
     // ------------------------------------------------------- Escena 3D (VTK)
     // Cubo de 4 caras WImage3D:
@@ -213,9 +230,9 @@ int main(int argc, char** argv) {
 
         // ---- Lectura de controles
         int modo           = barra("Modo 0CPU 1GPU 2AMBOS");
-        p.bilateralD       = max(1, barra("Bilateral d"));
+        p.bilateralD       = max(1, estableD.leer(barra("Bilateral d")));
         p.pasadasBilateral = max(1, barra("Pasadas bilateral"));
-        p.kernelDoG        = hacerImpar(barra("Kernel DoG (n)"), 3);
+        p.kernelDoG        = hacerImpar(estableDoG.leer(barra("Kernel DoG (n)")), 3);
         p.fBorde           = barra("Bordes x10") / 10.0;
         p.fGrano           = barra("Grano x100") / 100.0;
         p.fTurbulencia     = barra("Turbulencia x100") / 100.0;

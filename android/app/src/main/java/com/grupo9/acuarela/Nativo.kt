@@ -8,8 +8,13 @@ object Nativo {
         System.loadLibrary("acuarela")
     }
 
-    /** Carga los cuadros, abre Bad Apple y activa OpenCL. Devuelve el estado de OpenCL o "ERROR: ...". */
-    external fun iniciar(rutaBadApple: String, rutaCuadroGris: String, rutaCuadroColor: String): String
+    /**
+     * Carga los cuadros, abre Bad Apple y activa OpenCL. carpetaCache guarda los
+     * kernels OpenCL compilados entre ejecuciones; rutaCsv recibe las métricas de
+     * cada frame. Devuelve el estado de OpenCL o "ERROR: ...".
+     */
+    external fun iniciar(rutaBadApple: String, rutaCuadroGris: String, rutaCuadroColor: String,
+                         carpetaCache: String, rutaCsv: String): String
 
     /** 0 = cámara trasera, 1 = frontal. */
     external fun abrirCamara(indice: Int): Boolean
