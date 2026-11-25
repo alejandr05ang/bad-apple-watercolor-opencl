@@ -175,6 +175,7 @@ int main(int argc, char** argv) {
     const double alfa = 0.1;
     double angulo = 0;
     int modoAnterior = -1;
+    long framesProcesados = 0;
 
     // Sincronización Bad Apple <-> audio: el frame que toca se calcula con el
     // tiempo transcurrido desde que empezó la canción.
@@ -302,6 +303,7 @@ int main(int argc, char** argv) {
             << p.bilateralD << ',' << p.pasadasBilateral << ',' << p.kernelDoG << ','
             << msCPU << ',' << msGPU << ',' << fps << ',' << ram << ',' << cpu << ','
             << gpuUtil << ',' << gpuMem << '\n';
+        if (++framesProcesados % 30 == 0) csv.flush();   // no perder datos si se cierra a la fuerza
 
         // ---- Eventos: VTK y ventana de controles
         ventana3D.spinOnce(1, true);
